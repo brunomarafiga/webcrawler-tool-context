@@ -1,0 +1,16 @@
+# Exemplo de configuração para o direnv (https://direnv.net/)
+#
+# Para utilizar:
+# 1. Instale o direnv no seu sistema (ex: sudo apt install direnv)
+# 2. Adicione o hook do direnv ao seu ~/.bashrc ou ~/.zshrc (eval "$(direnv hook bash)")
+# 3. Copie este arquivo: cp .envrc.example .envrc
+# 4. Autorize a execução no diretório: direnv allow
+#
+# O direnv ativará o ambiente virtual e carregará as variáveis de .env
+# exclusivamente enquanto você estiver dentro desta pasta, descarregando tudo ao sair.
+
+# Carrega as variáveis do arquivo .env local sem exportá-las globalmente no sistema
+dotenv
+
+# Ativa automaticamente o ambiente virtual gerenciado pelo uv / venv
+layout python-venv .venv

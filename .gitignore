@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Ambientes virtuais
+.venv/
+env/
+venv/
+ENV/
+
+# Variáveis de ambiente e segredos
+.env
+.env.local
+.env.*.local
+.envrc
+
+# Dados de execução e bancos de dados locais
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Saídas do pipeline
+output/
+
+# IDE e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
