@@ -20,6 +20,8 @@ ENV/
 # Dados de execução e bancos de dados locais
 data/
 *.db
+!data/
+!data/pipeline.db
 *.sqlite
 *.sqlite3
 
