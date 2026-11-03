@@ -44,7 +44,7 @@ Para manter as dependências fora do Python do sistema, o projeto usa **Poetry**
 ### 3.1. Pré-requisitos
 - Poetry 2.x.
 - Python 3.10 ou superior; Python 3.12 é a versão alvo documentada em `.python-version`.
-- Chave de API da Google Gemini.
+- Ollama instalado e acessível localmente.
 
 ### 3.2. Passo a Passo
 
@@ -63,27 +63,21 @@ poetry config virtualenvs.in-project true --local
 poetry install
 ```
 
-O comando cria `.venv/` no projeto e gera `poetry.lock` quando ele ainda não existir. Crie o `.env` e informe sua chave:
-```env
-GEMINI_API_KEY=sua_chave_aqui
-GEMINI_MODEL=gemini-2.5-flash
-CRAWL_DELAY_SECONDS=2.0
-CRAWL_MAX_DEPTH=2
-CRAWL_MAX_PAGES_PER_TOOL=10
-```
-
-#### 2.1. Usar Qwen localmente com Ollama
-Instale o Ollama e baixe um modelo compatível com a RTX 4060 Ti de 8 GB:
-```bash
-ollama pull qwen2.5:7b
-```
-
-No `.env`, selecione o provedor local:
+O comando cria `.venv/` no projeto e gera `poetry.lock` quando ele ainda não existir. Configure o `.env` para usar o modelo local:
 ```env
 LLM_PROVIDER=ollama
 OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_TIMEOUT_SECONDS=300
+CRAWL_DELAY_SECONDS=2.0
+CRAWL_MAX_DEPTH=2
+CRAWL_MAX_PAGES_PER_TOOL=10
+```
+
+#### 3. Usar Qwen localmente com Ollama
+Baixe um modelo compatível com a RTX 4060 Ti de 8 GB:
+```bash
+ollama pull qwen2.5:7b
 ```
 
 Inicie o Ollama, caso ele não esteja como serviço, e execute o pipeline:
@@ -92,7 +86,7 @@ ollama serve
 poetry run python main.py --limit 3 --verbose
 ```
 
-Com `LLM_PROVIDER=ollama`, o pipeline não usa `GEMINI_API_KEY` nem envia os textos para a Google.
+O pipeline usa o modelo local e não envia os textos para provedores externos.
 
 Para selecionar explicitamente a versão alvo, caso ela esteja instalada:
 ```bash
@@ -100,7 +94,7 @@ poetry env use python3.12
 poetry install
 ```
 
-#### 3. Executar o pipeline
+#### 4. Executar o pipeline
 ```bash
 poetry run python main.py --limit 3 --dry-run --verbose
 poetry run python main.py --report
@@ -117,7 +111,7 @@ webcrawler/
 ├── pyproject.toml                        # Metadados e dependências do projeto
 ├── poetry.lock                           # Resolução estrita de dependências
 ├── poetry.toml                            # Configuração local do Poetry
-├── llm_client.py                          # Clientes Gemini e Ollama/Qwen
+├── llm_client.py                          # Cliente Ollama/Qwen
 ├── .python-version                       # Versão do Python fixada (3.12)
 ├── .env.example                          # Modelo de variáveis de ambiente
 ├── .envrc.example                        # Modelo de isolamento via direnv
@@ -152,7 +146,7 @@ flowchart TD
     A["dataset-ferramentas.xlsx\n(226 ferramentas)"] --> B["loader.py\nLeitura das seeds"]
     B --> C["crawler.py\nDescoberta de URLs\n(Respeito ao robots.txt)"]
     C --> D["scraper.py\nExtração de conteúdo\n(Trafilatura / BeautifulSoup)"]
-    D --> E["evidence_organizer.py\nAgrupamento nos 5 elementos\n(Gemini API)"]
+   D --> E["evidence_organizer.py\nAgrupamento nos 5 elementos\n(Ollama/Qwen local)"]
     E --> F{"Evidências\nsuficientes?"}
     F -- Não --> G["Status: pendente_revisao\nRegistra no banco de auditoria"]
     F -- Sim --> H["generator.py\nGeração do parágrafo\n(600 a 900 caracteres)"]
