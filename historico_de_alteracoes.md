@@ -51,3 +51,18 @@
 | `.envrc.example` | Configuração padrão de isolamento estrito de variáveis de ambiente e ativação automática via `direnv` |
 | `.gitignore` | Regras de exclusão de arquivos transitórios, logs, bancos locais, `.venv` e segredos |
 
+---
+
+## [2026-11-03] — Criação e Publicação do Repositório Git/GitHub
+
+### Ações realizadas
+
+- Inicialização do controle de versão local Git na branch `main`.
+- Criação do repositório remoto privado no GitHub via GitHub CLI (`gh`):
+  - **Repositório**: `brunomarafiga/webcrawler-tool-context`
+  - **Visibilidade**: Privado (`isPrivate: true`)
+  - **URL**: `https://github.com/brunomarafiga/webcrawler-tool-context`
+- Publicação do commit inicial com os arquivos de código-fonte, configurações e documentação técnica.
+
+
+
