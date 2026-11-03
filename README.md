@@ -16,9 +16,9 @@ O objetivo deste projeto é processar as 226 ferramentas listadas no arquivo `da
 
 ---
 
-## 2. Controle de Versão e Isolamento sem Contêineres
+## 2. Ambiente Isolado com Poetry
 
-Para garantir reprodutibilidade e isolamento de variáveis e dependências sem recorrer à sobrecarga de contêineres Docker/Podman, este projeto adota a combinação de **`uv`**, **`.python-version`** e **`direnv`**.
+Para manter as dependências fora do Python do sistema, o projeto usa **Poetry** com um ambiente virtual local. O Poetry resolve as versões e registra o resultado em `poetry.lock`.
 
 ### 2.1. Como a Solução Opera
 
@@ -26,52 +26,44 @@ Para garantir reprodutibilidade e isolamento de variáveis e dependências sem r
 ┌───────────────────────────────────────────────────────────────┐
 │ Diretório do Projeto: webcrawler/                             │
 │                                                               │
-│  .python-version  ──► Fixa a versão do runtime (ex: 3.12)    │
-│  uv / .venv       ──► Isola bibliotecas e binários Python     │
-│  .envrc / direnv  ──► Injeta variáveis ao entrar no diretório │
-│                       e descarrega tudo ao sair               │
+│  .python-version  ──► Indica o runtime alvo (3.12)           │
+│  Poetry           ──► Resolve e instala dependências          │
+│  .venv            ──► Mantém pacotes fora do Python global    │
+│  poetry.lock      ──► Registra versões exatas                 │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-1. **Fixação da versão do interpretador (`.python-version`)**:
-   O arquivo `.python-version` na raiz define a versão exata do Python (`3.12`). O gerenciador `uv` (ou alternativamente `pyenv`) lê esse arquivo e garante que o ambiente virtual use o interpretador correspondente, baixando-o automaticamente caso não esteja instalado no sistema operacional.
-
-2. **Isolamento de dependências (`uv` e `.venv`)**:
-   O ambiente virtual `.venv` local contém apenas os pacotes declarados em `pyproject.toml` e travados em `uv.lock`. Nenhuma dependência é instalada no Python global da máquina.
-
-3. **Isolamento de variáveis de ambiente (`direnv` / `.envrc`)**:
-   O `direnv` intercepta a navegação no terminal (`cd`). Ao entrar na pasta do projeto, ele ativa o ambiente virtual e exporta as chaves do `.env` localmente na sessão do shell. Ao navegar para qualquer outro diretório, as variáveis e o ambiente virtual são imediatamente descarregados, impedindo vazamento de credenciais e conflito entre projetos.
+1. **Dependências isoladas**: o Poetry instala os pacotes no ambiente virtual do projeto, sem alterar o Python global.
+2. **Reprodutibilidade**: o `poetry.lock` fixa a resolução usada por todos os ambientes.
+3. **Credenciais fora do código**: as variáveis continuam no arquivo local `.env`, que não deve ser versionado.
 
 ---
 
 ## 3. Instalação e Configuração
 
 ### 3.1. Pré-requisitos
-- Sistema operacional Linux ou macOS.
-- Interpretador Python 3.10 ou superior (ou deixar o `uv` instalar automaticamente).
+- Poetry 2.x.
+- Python 3.10 ou superior; Python 3.12 é a versão alvo documentada em `.python-version`.
 - Chave de API da Google Gemini.
 
 ### 3.2. Passo a Passo
 
-#### 1. Instalar o `uv` (caso ainda não possua)
+#### 1. Instalar o Poetry
+Caso ainda não esteja instalado, use o instalador oficial, que instala o Poetry no perfil do usuário:
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-#### 2. Configurar o interpretador Python e instalar dependências
+Reabra o terminal ou carregue o caminho indicado pelo instalador.
+
+#### 2. Configurar o ambiente e instalar as dependências
 Na raiz do projeto, execute:
 ```bash
-# O uv lê o arquivo .python-version e sincroniza as dependências em .venv
-uv sync
+poetry config virtualenvs.in-project true --local
+poetry install
 ```
 
-#### 3. Configurar variáveis de ambiente
-Crie seu arquivo `.env` a partir do modelo:
-```bash
-cp .env.example .env
-```
-Edite o arquivo `.env` informando sua chave:
+O comando cria `.venv/` no projeto e gera `poetry.lock` quando ele ainda não existir. Crie o `.env` e informe sua chave:
 ```env
 GEMINI_API_KEY=sua_chave_aqui
 GEMINI_MODEL=gemini-2.5-flash
@@ -80,22 +72,17 @@ CRAWL_MAX_DEPTH=2
 CRAWL_MAX_PAGES_PER_TOOL=10
 ```
 
-#### 4. (Opcional, mas Recomendado) Ativar isolamento automático com `direnv`
-Caso utilize o `direnv` no seu ambiente:
+Para selecionar explicitamente a versão alvo, caso ela esteja instalada:
 ```bash
-# Instalação no Debian/Ubuntu (caso não tenha)
-sudo apt install direnv
-
-# Configuração no ~/.bashrc ou ~/.zshrc (executar uma única vez)
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
-source ~/.bashrc
-
-# Ativar no projeto
-cp .envrc.example .envrc
-direnv allow
+poetry env use python3.12
+poetry install
 ```
 
-A partir desse momento, ao entrar na pasta do projeto via terminal, o `.venv` será carregado e as variáveis do `.env` estarão disponíveis exclusivamente para essa sessão.
+#### 3. Executar o pipeline
+```bash
+poetry run python main.py --limit 3 --dry-run --verbose
+poetry run python main.py --report
+```
 
 ---
 
@@ -106,7 +93,8 @@ webcrawler/
 ├── dataset-ferramentas.xlsx              # Planilha original de entrada
 ├── Orientacao_Tecnica_Pipeline_tool_context.docx  # Documento de orientação técnica
 ├── pyproject.toml                        # Metadados e dependências do projeto
-├── uv.lock                               # Resolução estrita de dependências
+├── poetry.lock                           # Resolução estrita de dependências
+├── poetry.toml                            # Configuração local do Poetry
 ├── .python-version                       # Versão do Python fixada (3.12)
 ├── .env.example                          # Modelo de variáveis de ambiente
 ├── .envrc.example                        # Modelo de isolamento via direnv
