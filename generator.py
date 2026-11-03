@@ -8,17 +8,14 @@ Faz até MAX_GENERATION_RETRIES tentativas, ajustando por extensão quando neces
 
 from __future__ import annotations
 
-import json
 import logging
-
-from google import genai
 
 from config import (
     CONTEXT_MAX_CHARS,
     CONTEXT_MIN_CHARS,
-    GEMINI_MODEL,
     MAX_GENERATION_RETRIES,
 )
+from llm_client import LLMClient
 from models import ContextElement, ELEMENT_ORDER, Tool
 
 log = logging.getLogger("pipeline.generator")
@@ -92,7 +89,7 @@ def _format_evidences(organized: dict[ContextElement, str]) -> str:
 def generate_context(
     tool: Tool,
     organized: dict[ContextElement, str],
-    client: genai.Client,
+    client: LLMClient,
 ) -> tuple[str, bool]:
     """
     Gera o tool_context para uma ferramenta.
@@ -134,14 +131,7 @@ def generate_context(
                     current_text=current_text,
                 )
 
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config=genai.types.GenerateContentConfig(
-                    temperature=0.3,
-                ),
-            )
-            current_text = response.text.strip()
+            current_text = client.generate(prompt, temperature=0.3)
             char_count = len(current_text)
 
             log.debug(

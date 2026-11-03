@@ -41,6 +41,10 @@ MAX_TEXT_PER_PAGE: int = int(os.getenv("MAX_TEXT_PER_PAGE", "10000"))
 # ---------------------------------------------------------------------------
 GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").lower()
+OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_TIMEOUT_SECONDS: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "300"))
 CONTEXT_MIN_CHARS: int = 600
 CONTEXT_MAX_CHARS: int = 900
 MAX_GENERATION_RETRIES: int = int(os.getenv("MAX_GENERATION_RETRIES", "3"))

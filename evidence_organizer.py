@@ -8,9 +8,7 @@ from __future__ import annotations
 import json
 import logging
 
-from google import genai
-
-from config import GEMINI_MODEL
+from llm_client import LLMClient
 from models import ContextElement, ELEMENT_ORDER, EvidenceRecord, Tool
 
 log = logging.getLogger("pipeline.organizer")
@@ -69,7 +67,7 @@ def _build_content_block(evidences: list[EvidenceRecord]) -> str:
 def organize_evidence(
     tool: Tool,
     evidences: list[EvidenceRecord],
-    client: genai.Client,
+    client: LLMClient,
 ) -> dict[ContextElement, str]:
     """
     Classifica evidências nos 5 elementos obrigatórios via Gemini.
@@ -100,15 +98,11 @@ def organize_evidence(
     )
 
     try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            ),
+        raw = client.generate(
+            prompt,
+            json_mode=True,
+            temperature=0.1,
         )
-        raw = response.text.strip()
 
         # Remover blocos de markdown se presentes
         if raw.startswith("```"):

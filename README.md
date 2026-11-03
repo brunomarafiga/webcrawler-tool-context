@@ -72,6 +72,28 @@ CRAWL_MAX_DEPTH=2
 CRAWL_MAX_PAGES_PER_TOOL=10
 ```
 
+#### 2.1. Usar Qwen localmente com Ollama
+Instale o Ollama e baixe um modelo compatível com a RTX 4060 Ti de 8 GB:
+```bash
+ollama pull qwen2.5:7b
+```
+
+No `.env`, selecione o provedor local:
+```env
+LLM_PROVIDER=ollama
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_TIMEOUT_SECONDS=300
+```
+
+Inicie o Ollama, caso ele não esteja como serviço, e execute o pipeline:
+```bash
+ollama serve
+poetry run python main.py --limit 3 --verbose
+```
+
+Com `LLM_PROVIDER=ollama`, o pipeline não usa `GEMINI_API_KEY` nem envia os textos para a Google.
+
 Para selecionar explicitamente a versão alvo, caso ela esteja instalada:
 ```bash
 poetry env use python3.12
@@ -95,6 +117,7 @@ webcrawler/
 ├── pyproject.toml                        # Metadados e dependências do projeto
 ├── poetry.lock                           # Resolução estrita de dependências
 ├── poetry.toml                            # Configuração local do Poetry
+├── llm_client.py                          # Clientes Gemini e Ollama/Qwen
 ├── .python-version                       # Versão do Python fixada (3.12)
 ├── .env.example                          # Modelo de variáveis de ambiente
 ├── .envrc.example                        # Modelo de isolamento via direnv

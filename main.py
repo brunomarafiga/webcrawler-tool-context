@@ -14,18 +14,24 @@ Uso:
 from __future__ import annotations
 
 import argparse
-import asyncio
 import logging
 import sys
 import time
 
-from google import genai
-
-from config import GEMINI_API_KEY, GEMINI_MODEL, MIN_ELEMENTS_WITH_EVIDENCE
+from config import (
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
+    LLM_PROVIDER,
+    MIN_ELEMENTS_WITH_EVIDENCE,
+    OLLAMA_HOST,
+    OLLAMA_MODEL,
+    OLLAMA_TIMEOUT_SECONDS,
+)
 from crawler import crawl_tool
 from database import Database
 from evidence_organizer import organize_evidence
 from generator import generate_context
+from llm_client import LLMClient, create_llm_client
 from loader import load_tools
 from models import ContextElement, Tool, ToolStatus
 from publisher import publish_results
@@ -43,7 +49,7 @@ def _count_elements_with_evidence(organized: dict[ContextElement, str]) -> int:
 def process_tool(
     tool: Tool,
     db: Database,
-    genai_client: genai.Client | None,
+    llm_client: LLMClient | None,
     dry_run: bool = False,
 ) -> ToolStatus:
     """Pipeline completo para uma ferramenta. Retorna o status final."""
@@ -94,14 +100,14 @@ def process_tool(
         )
         return ToolStatus.FAILED
 
-    if dry_run or genai_client is None:
+    if dry_run or llm_client is None:
         log.info(f"[{tool.id}] [DRY-RUN] Pulando geração LLM.")
         return ToolStatus.NOT_PROCESSED
 
     # -------------------------------------------------------------------
     # Etapa 3: Organização de evidências
     # -------------------------------------------------------------------
-    organized = organize_evidence(tool, evidences, genai_client)
+    organized = organize_evidence(tool, evidences, llm_client)
 
     filled = _count_elements_with_evidence(organized)
     if filled < MIN_ELEMENTS_WITH_EVIDENCE:
@@ -129,7 +135,7 @@ def process_tool(
     # -------------------------------------------------------------------
     # Etapa 4: Geração do texto
     # -------------------------------------------------------------------
-    text, is_valid = generate_context(tool, organized, genai_client)
+    text, is_valid = generate_context(tool, organized, llm_client)
 
     # -------------------------------------------------------------------
     # Etapa 5: Validação
@@ -178,7 +184,8 @@ def run_pipeline(args: argparse.Namespace) -> None:
 
     log.info(
         f"Pipeline iniciado — {len(tools)} ferramenta(s) a processar. "
-        f"Modelo: {GEMINI_MODEL}"
+        f"Provedor: {LLM_PROVIDER} | Modelo: "
+        f"{OLLAMA_MODEL if LLM_PROVIDER == 'ollama' else GEMINI_MODEL}"
     )
 
     # Modo publish-only
@@ -192,16 +199,21 @@ def run_pipeline(args: argparse.Namespace) -> None:
         publish_results(tools, db)
         return
 
-    # Inicializar cliente Gemini
-    genai_client: genai.Client | None = None
+    # Inicializar o provedor LLM selecionado
+    llm_client: LLMClient | None = None
     if not args.dry_run:
-        if not GEMINI_API_KEY:
-            log.error(
-                "GEMINI_API_KEY não configurada. "
-                "Copie .env.example para .env e preencha a chave."
+        try:
+            llm_client = create_llm_client(
+                LLM_PROVIDER,
+                gemini_api_key=GEMINI_API_KEY,
+                gemini_model=GEMINI_MODEL,
+                ollama_host=OLLAMA_HOST,
+                ollama_model=OLLAMA_MODEL,
+                ollama_timeout=OLLAMA_TIMEOUT_SECONDS,
             )
+        except ValueError as exc:
+            log.error(str(exc))
             sys.exit(1)
-        genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
     # Processar ferramentas
     stats = {s: 0 for s in ToolStatus}
@@ -216,7 +228,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
             stats[ToolStatus.APPROVED] += 1
             continue
 
-        status = process_tool(tool, db, genai_client, dry_run=args.dry_run)
+        status = process_tool(tool, db, llm_client, dry_run=args.dry_run)
         stats[status] += 1
 
     # Publicar resultados
