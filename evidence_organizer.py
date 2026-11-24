@@ -10,7 +10,7 @@ import logging
 
 from google import genai
 
-from config import GEMINI_MODEL
+from config import GEMINI_MODEL, LLM_PROVIDER, LOCAL_LLM_MODEL
 from models import ContextElement, ELEMENT_ORDER, EvidenceRecord, Tool
 
 log = logging.getLogger("pipeline.organizer")
@@ -101,7 +101,7 @@ def organize_evidence(
 
     try:
         response = client.models.generate_content(
-            model=GEMINI_MODEL,
+            model=LOCAL_LLM_MODEL if LLM_PROVIDER == "local" else GEMINI_MODEL,
             contents=prompt,
             config=genai.types.GenerateContentConfig(
                 response_mime_type="application/json",

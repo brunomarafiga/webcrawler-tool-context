@@ -17,6 +17,8 @@ from config import (
     CONTEXT_MAX_CHARS,
     CONTEXT_MIN_CHARS,
     GEMINI_MODEL,
+    LLM_PROVIDER,
+    LOCAL_LLM_MODEL,
     MAX_GENERATION_RETRIES,
 )
 from models import ContextElement, ELEMENT_ORDER, Tool
@@ -135,7 +137,7 @@ def generate_context(
                 )
 
             response = client.models.generate_content(
-                model=GEMINI_MODEL,
+                model=LOCAL_LLM_MODEL if LLM_PROVIDER == "local" else GEMINI_MODEL,
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     temperature=0.3,

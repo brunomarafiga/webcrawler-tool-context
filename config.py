@@ -41,6 +41,9 @@ MAX_TEXT_PER_PAGE: int = int(os.getenv("MAX_TEXT_PER_PAGE", "10000"))
 # ---------------------------------------------------------------------------
 GEMINI_API_KEY: str | None = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").strip().lower()
+LOCAL_LLM_URL: str = os.getenv("LOCAL_LLM_URL", "http://127.0.0.1:11434")
+LOCAL_LLM_MODEL: str = os.getenv("LOCAL_LLM_MODEL", "qwen2.5:7b")
 CONTEXT_MIN_CHARS: int = 600
 CONTEXT_MAX_CHARS: int = 900
 MAX_GENERATION_RETRIES: int = int(os.getenv("MAX_GENERATION_RETRIES", "3"))

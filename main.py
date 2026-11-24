@@ -21,7 +21,15 @@ import time
 
 from google import genai
 
-from config import GEMINI_API_KEY, GEMINI_MODEL, MIN_ELEMENTS_WITH_EVIDENCE
+from config import (
+    GEMINI_API_KEY,
+    GEMINI_MODEL,
+    LLM_PROVIDER,
+    LOCAL_LLM_MODEL,
+    LOCAL_LLM_URL,
+    MIN_ELEMENTS_WITH_EVIDENCE,
+)
+from local_llm import LocalLLMClient
 from crawler import crawl_tool
 from database import Database
 from evidence_organizer import organize_evidence
@@ -43,7 +51,7 @@ def _count_elements_with_evidence(organized: dict[ContextElement, str]) -> int:
 def process_tool(
     tool: Tool,
     db: Database,
-    genai_client: genai.Client | None,
+    genai_client: genai.Client | LocalLLMClient | None,
     dry_run: bool = False,
 ) -> ToolStatus:
     """Pipeline completo para uma ferramenta. Retorna o status final."""
@@ -176,9 +184,10 @@ def run_pipeline(args: argparse.Namespace) -> None:
     if args.limit:
         tools = tools[: args.limit]
 
+    model_name = LOCAL_LLM_MODEL if LLM_PROVIDER == "local" else GEMINI_MODEL
     log.info(
         f"Pipeline iniciado — {len(tools)} ferramenta(s) a processar. "
-        f"Modelo: {GEMINI_MODEL}"
+        f"Modelo: {model_name}"
     )
 
     # Modo publish-only
@@ -193,15 +202,18 @@ def run_pipeline(args: argparse.Namespace) -> None:
         return
 
     # Inicializar cliente Gemini
-    genai_client: genai.Client | None = None
+    genai_client: genai.Client | LocalLLMClient | None = None
     if not args.dry_run:
-        if not GEMINI_API_KEY:
-            log.error(
-                "GEMINI_API_KEY não configurada. "
-                "Copie .env.example para .env e preencha a chave."
-            )
-            sys.exit(1)
-        genai_client = genai.Client(api_key=GEMINI_API_KEY)
+        if LLM_PROVIDER == "local":
+            genai_client = LocalLLMClient(LOCAL_LLM_URL, LOCAL_LLM_MODEL)
+        else:
+            if not GEMINI_API_KEY:
+                log.error(
+                    "GEMINI_API_KEY não configurada. "
+                    "Copie .env.example para .env e preencha a chave."
+                )
+                sys.exit(1)
+            genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
     # Processar ferramentas
     stats = {s: 0 for s in ToolStatus}
