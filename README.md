@@ -13,91 +13,93 @@ O objetivo deste projeto é processar as 226 ferramentas listadas no arquivo `da
 - **Não adulteração de dados existentes**: O único campo atualizado na base é `tool_context`. Os identificadores, nomes, links e demais atributos permanecem intocados.
 - **Preservação do dataset original**: A planilha de entrada permanece inalterada; os resultados são consolidados em uma nova planilha (`output/dataset-ferramentas-final.xlsx`).
 - **Respeito a diretivas de acesso**: O crawler respeita instruções do `robots.txt`, aplica atrasos configuráveis entre requisições e registra falhas de acesso sem interromper a execução global.
+- **Resiliência e Execução Incremental**: Todas as etapas (crawling, scraping e geração) são salvas em tempo real no banco SQLite local (`data/pipeline.db`). Ferramentas aprovadas são ignoradas em novas execuções, permitindo pausar e retomar o processamento a qualquer momento com zero perda de dados.
 
 ---
 
-## 2. Ambiente Isolado com Poetry
+## 2. Isolamento de Ambiente (uv & Poetry)
 
-Para manter as dependências fora do Python do sistema, o projeto usa **Poetry** com um ambiente virtual local. O Poetry resolve as versões e registra o resultado em `poetry.lock`.
+O projeto é agnóstico ao gerenciador de ambientes virtuais e suporta tanto **uv** (recomendado para máxima performance e inicialização instantânea) quanto **Poetry**.
 
 ### 2.1. Como a Solução Opera
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ Diretório do Projeto: webcrawler/                             │
+│ Diretório do Projeto: webcrawler-tool-context/                │
 │                                                               │
-│  .python-version  ──► Indica o runtime alvo (3.12)           │
-│  Poetry           ──► Resolve e instala dependências          │
-│  .venv            ──► Mantém pacotes fora do Python global    │
-│  poetry.lock      ──► Registra versões exatas                 │
+│  .python-version  ──► Indica o runtime alvo (3.12)            │
+│  uv / Poetry      ──► Resolve e instala dependências isoladas │
+│  .venv            ──► Ambiente virtual local no projeto       │
+│  uv.lock / lock   ──► Registram versões exatas e deterministas│
+│  pipeline.db      ──► Auditoria e checkpoints transacionais   │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-1. **Dependências isoladas**: o Poetry instala os pacotes no ambiente virtual do projeto, sem alterar o Python global.
-2. **Reprodutibilidade**: o `poetry.lock` fixa a resolução usada por todos os ambientes.
-3. **Credenciais fora do código**: as variáveis continuam no arquivo local `.env`, que não deve ser versionado.
+1. **Dependências isoladas**: Os pacotes são mantidos em `.venv/` no diretório do projeto, sem afetar o Python do sistema operacional.
+2. **Reprodutibilidade**: Bloqueios de versão fixados em `poetry.lock` e `uv.lock`.
+3. **Execução rápida com uv**: Usar `uv run --no-sync` permite pular checagens de lockfile na inicialização, rodando diretamente no ambiente existente.
+4. **Credenciais seguras**: Chaves e hosts de LLM residem exclusivamente no arquivo local `.env` (não versionado).
 
 ---
 
 ## 3. Instalação e Configuração
 
 ### 3.1. Pré-requisitos
-- Poetry 2.x.
-- Python 3.10 ou superior; Python 3.12 é a versão alvo documentada em `.python-version`.
-- Ollama instalado e acessível localmente.
+- **Python 3.10+** (Python 3.12 recomendado, conforme `.python-version`).
+- **uv** (recomendado) ou **Poetry 2.x**.
+- **Ollama** instalado e acessível localmente (para inferência 100% privada e gratuita com Qwen 2.5).
 
 ### 3.2. Passo a Passo
 
-#### 1. Instalar o Poetry
-Caso ainda não esteja instalado, use o instalador oficial, que instala o Poetry no perfil do usuário:
+#### Opção A: Usando `uv` (Recomendado)
 ```bash
-curl -sSL https://install.python-poetry.org | python3 -
+# Sincronizar o ambiente virtual
+uv sync
+
+# Ou executar comandos diretamente
+uv run python main.py --report
 ```
 
-Reabra o terminal ou carregue o caminho indicado pelo instalador.
-
-#### 2. Configurar o ambiente e instalar as dependências
-Na raiz do projeto, execute:
+#### Opção B: Usando `Poetry`
 ```bash
 poetry config virtualenvs.in-project true --local
 poetry install
 ```
 
-O comando cria `.venv/` no projeto e gera `poetry.lock` quando ele ainda não existir. Configure o `.env` para usar o modelo local:
-```env
-LLM_PROVIDER=ollama
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
-OLLAMA_TIMEOUT_SECONDS=300
-CRAWL_DELAY_SECONDS=2.0
-CRAWL_MAX_DEPTH=2
-CRAWL_MAX_PAGES_PER_TOOL=10
-```
+---
 
-#### 3. Usar Qwen localmente com Ollama
-Baixe um modelo compatível com a RTX 4060 Ti de 8 GB:
+### 3.3. Configuração do Modelo Local (Ollama + Qwen 2.5)
+
+Para executar o pipeline sem envio de dados a provedores externos e sem custo de tokens de API:
+
+1. Baixe o modelo Qwen 2.5 7B (otimizado para placas como RTX 4060 Ti 8GB):
 ```bash
 ollama pull qwen2.5:7b
 ```
 
-Inicie o Ollama, caso ele não esteja como serviço, e execute o pipeline:
+2. Certifique-se de que o Ollama está rodando:
 ```bash
 ollama serve
-poetry run python main.py --limit 3 --verbose
 ```
 
-O pipeline usa o modelo local e não envia os textos para provedores externos.
+3. Crie ou ajuste o arquivo `.env` na raiz do projeto:
+```env
+# Provedor LLM: 'ollama' (padrão local) ou 'gemini' (nuvem)
+LLM_PROVIDER=ollama
 
-Para selecionar explicitamente a versão alvo, caso ela esteja instalada:
-```bash
-poetry env use python3.12
-poetry install
-```
+# Configuração Ollama
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+OLLAMA_TIMEOUT_SECONDS=300
 
-#### 4. Executar o pipeline
-```bash
-poetry run python main.py --limit 3 --dry-run --verbose
-poetry run python main.py --report
+# Configuração Gemini (opcional, caso LLM_PROVIDER=gemini)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+
+# Parâmetros do Crawler
+CRAWL_DELAY_SECONDS=2.0
+CRAWL_MAX_DEPTH=2
+CRAWL_MAX_PAGES_PER_TOOL=10
 ```
 
 ---
@@ -105,36 +107,37 @@ poetry run python main.py --report
 ## 4. Estrutura do Projeto
 
 ```
-webcrawler/
-├── dataset-ferramentas.xlsx              # Planilha original de entrada
-├── Orientacao_Tecnica_Pipeline_tool_context.docx  # Documento de orientação técnica
+webcrawler-tool-context/
+├── dataset-ferramentas.xlsx              # Planilha original de entrada (226 ferramentas)
+├── Orientacao_Tecnica_Pipeline_tool_context.docx  # Documento de orientação técnica LumIA
 ├── pyproject.toml                        # Metadados e dependências do projeto
-├── poetry.lock                           # Resolução estrita de dependências
-├── poetry.toml                            # Configuração local do Poetry
-├── llm_client.py                          # Cliente Ollama/Qwen
-├── .python-version                       # Versão do Python fixada (3.12)
+├── poetry.lock                           # Lockfile do Poetry
+├── uv.lock                               # Lockfile do uv
+├── poetry.toml                           # Configuração local do Poetry
+├── .python-version                       # Versão do interpretador Python (3.12)
 ├── .env.example                          # Modelo de variáveis de ambiente
 ├── .envrc.example                        # Modelo de isolamento via direnv
-├── .gitignore                            # Exclusão de artefatos locais
+├── .gitignore                            # Exclusão de artefatos transitórios e segredos
 ├── historico_de_alteracoes.md            # Registro formal de alterações
-├── config.py                             # Centralização de parâmetros e caminhos
+├── config.py                             # Centralização de configurações e parâmetros
 ├── models.py                             # Dataclasses tipadas e enums de status
-├── database.py                           # Camada SQLite de auditoria e controle
-├── utils.py                              # Utilitários de rede, URLs e logging
-├── loader.py                             # Leitura do dataset Excel
-├── crawler.py                            # Web crawler (robots.txt, seeds, depth)
-├── scraper.py                            # Extração textual (Trafilatura + BS4)
-├── evidence_organizer.py                 # Classificação dos 5 elementos via LLM
-├── generator.py                          # Redação do parágrafo único (600–900 chars)
-├── validator.py                          # Validação sintática e de restrições
+├── database.py                           # Camada SQLite de auditoria e controle transacional
+├── utils.py                              # Utilitários de rede, logging e console UTF-8
+├── loader.py                             # Leitura do dataset Excel original
+├── crawler.py                            # Web crawler (robots.txt, seeds, controle de profundidade)
+├── scraper.py                            # Extração textual (Trafilatura + fallback BeautifulSoup)
+├── llm_client.py                         # Cliente unificado de LLM (Ollama e Gemini)
+├── evidence_organizer.py                 # Classificação das evidências nos 5 elementos obrigatórios
+├── generator.py                          # Redação do parágrafo técnico (600–900 chars)
+├── validator.py                          # Validação sintática e de restrições do protocolo
 ├── publisher.py                          # Geração da planilha Excel de saída
-├── main.py                               # Orquestrador executável via CLI
+├── main.py                               # Orquestrador CLI com modo incremental
 ├── data/
 │   └── pipeline.db                       # Banco SQLite de auditoria operacional
 ├── logs/
 │   └── pipeline.log                      # Registro cronológico detalhado
 └── output/
-    └── dataset-ferramentas-final.xlsx    # Planilha final com tool_context
+    └── dataset-ferramentas-final.xlsx    # Planilha final gerada com tool_context preenchido
 ```
 
 ---
@@ -146,7 +149,7 @@ flowchart TD
     A["dataset-ferramentas.xlsx\n(226 ferramentas)"] --> B["loader.py\nLeitura das seeds"]
     B --> C["crawler.py\nDescoberta de URLs\n(Respeito ao robots.txt)"]
     C --> D["scraper.py\nExtração de conteúdo\n(Trafilatura / BeautifulSoup)"]
-   D --> E["evidence_organizer.py\nAgrupamento nos 5 elementos\n(Ollama/Qwen local)"]
+    D --> E["evidence_organizer.py\nAgrupamento nos 5 elementos\n(Ollama / Qwen local)"]
     E --> F{"Evidências\nsuficientes?"}
     F -- Não --> G["Status: pendente_revisao\nRegistra no banco de auditoria"]
     F -- Sim --> H["generator.py\nGeração do parágrafo\n(600 a 900 caracteres)"]
@@ -162,54 +165,74 @@ flowchart TD
 
 ## 6. Guia de Uso da Interface de Linha de Comando (CLI)
 
-O script principal `main.py` oferece múltiplos parâmetros de controle de execução:
+O script principal `main.py` oferece múltiplos parâmetros para controle granular da execução:
 
 | Parâmetro | Tipo | Descrição |
 |---|---|---|
 | `--limit N` | Inteiro | Processa apenas as primeiras `N` ferramentas da planilha. |
 | `--tool-id ID` | Inteiro | Executa o pipeline exclusivamente para a ferramenta correspondente ao ID informado. |
-| `--dry-run` | Flag | Executa crawling e scraping reais, registrando as evidências no banco sem realizar chamadas pagas ao LLM. |
+| `--dry-run` | Flag | Executa crawling e scraping reais, registrando evidências sem chamar o LLM. |
 | `--reprocess` | Flag | Força o reprocessamento de ferramentas que já possuam contexto aprovado no banco de dados. |
 | `--publish-only` | Flag | Não realiza coletas; apenas consolida os contextos aprovados no banco em uma nova planilha Excel. |
 | `--report` | Flag | Exibe um resumo estatístico do banco de dados (ferramentas processadas, pendentes, falhas) e encerra. |
-| `--verbose` | Flag | Habilita logs detalhados em nível `DEBUG` no terminal. |
+| `--verbose` | Flag | Habilita logs detalhados em nível `DEBUG` no terminal e no arquivo de log. |
 
-### Exemplos de Comandos
+### Exemplos de Execução
 
-#### Teste em modo dry-run (sem custo de API)
+#### Executar o processamento completo das 226 ferramentas
+O pipeline é **incremental**: ferramentas já com status `aprovado` no SQLite são ignoradas automaticamente, retomando exatamente do ponto onde parou.
 ```bash
-uv run python main.py --limit 3 --dry-run --verbose
+# Com uv:
+uv run --no-sync python main.py --verbose
+
+# Com Poetry:
+poetry run python main.py --verbose
+```
+
+#### Teste rápido com lote controlado
+```bash
+uv run python main.py --limit 3 --verbose
 ```
 
 #### Processar uma ferramenta específica por ID
 ```bash
-uv run python main.py --tool-id 1
+uv run python main.py --tool-id 10
 ```
 
-#### Executar um lote controlado de 10 ferramentas
+#### Teste em modo dry-run (somente crawling/scraping, sem inferência de IA)
 ```bash
-uv run python main.py --limit 10
+uv run python main.py --limit 5 --dry-run
 ```
 
-#### Executar o processamento completo das 226 ferramentas
-O pipeline é incremental por padrão: registros já aprovados no SQLite são ignorados automaticamente.
-```bash
-uv run python main.py
-```
-
-#### Consultar o status da base de auditoria
+#### Consultar o resumo do progresso e status da base
 ```bash
 uv run python main.py --report
 ```
 
-#### Regenerar a planilha final a partir do banco de dados
+#### Gerar a planilha final a partir dos dados já aprovados
 ```bash
 uv run python main.py --publish-only
 ```
 
 ---
 
-## 7. Banco de Dados e Auditoria
+## 7. Monitoramento em Tempo Real
+
+Durante execuções de longa duração, você pode acompanhar a extração e a inferência por meio dos logs:
+
+* **No Windows PowerShell**:
+  ```powershell
+  Get-Content logs\pipeline.log -Wait
+  ```
+
+* **No Linux / macOS**:
+  ```bash
+  tail -f logs/pipeline.log
+  ```
+
+---
+
+## 8. Banco de Dados e Auditoria
 
 Todas as operações de rede e decisões do modelo são persistidas no banco SQLite local `data/pipeline.db`.
 
@@ -243,9 +266,10 @@ Todas as operações de rede e decisões do modelo são persistidas no banco SQL
 
 ---
 
-## 8. Critérios de Conformidade de `tool_context`
+## 9. Critérios de Conformidade de `tool_context`
 
-Todo texto aprovado atende rigorosamente aos seguintes requisitos:
+Todo texto aprovado atende rigorosamente aos seguintes requisitos do **Protocolo de Curadoria (HarmonIA/LumIA)**:
+
 1. **Extensão**: Entre 600 e 900 caracteres, incluindo espaços.
 2. **Formatação**: Redigido em um único parágrafo contínuo.
 3. **Estrutura dos 5 elementos obrigatórios na ordem**:

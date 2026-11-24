@@ -21,6 +21,9 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     datefmt = "%Y-%m-%d %H:%M:%S"
 
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     handlers: list[logging.Handler] = [
         logging.StreamHandler(sys.stdout),
         logging.FileHandler(LOG_FILE, encoding="utf-8"),

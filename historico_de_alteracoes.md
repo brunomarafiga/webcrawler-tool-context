@@ -64,5 +64,17 @@
   - **URL**: `https://github.com/brunomarafiga/webcrawler-tool-context`
 - Publicação do commit inicial com os arquivos de código-fonte, configurações e documentação técnica.
 
+---
+
+## [2026-11-24] — Integração Ollama (Qwen 2.5), Suporte ao uv e Unificação de Branches
+
+### Modificações e Melhorias
+- **Cliente unificado de LLM (`llm_client.py`)**: Implementação de interface única para Ollama (Qwen 2.5 local) e Google Gemini.
+- **Isolamento e execução via uv**: Adicionado suporte nativo e documentação para execução otimizada com `uv run --no-sync` ao lado do Poetry.
+- **Correção de encoding UTF-8 no Windows (`utils.py`)**: Reconfiguração do stdout para evitar erros com caracteres Unicode em terminais Windows.
+- **Atualização da documentação (`README.md`)**: Inclusão de guia completo para execução com uv, monitoramento de logs em tempo real (`Get-Content -Wait`) e arquitetura de resiliência transacional do SQLite.
+- **Unificação de branches**: Fusão e sincronização da branch `feature/ollama-qwen` com a branch `main`.
+
+
 
 
